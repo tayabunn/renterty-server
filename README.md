@@ -62,4 +62,4 @@ node seed.js
 ```bash
 npm run dev
 ```
-The server will start running locally at [http://localhost:5000](http://localhost:5000).
+The server will start running locally at [https://renterty-server.vercel.app](https://renterty-server.vercel.app).
