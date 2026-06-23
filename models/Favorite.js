@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const favoriteSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  tenantId: { type: String, ref: 'User', required: true },
   propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true }
 }, { timestamps: true });
 

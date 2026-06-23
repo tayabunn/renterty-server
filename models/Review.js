@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const reviewSchema = new mongoose.Schema({
   propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  tenantId: { type: String, ref: 'User', required: true },
   tenantName: { type: String, required: true },
   tenantEmail: { type: String, required: true },
   rating: { type: Number, required: true, min: 1, max: 5 },

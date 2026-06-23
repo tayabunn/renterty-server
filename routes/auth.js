@@ -1,132 +1,8 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { verifyToken, verifyRole } from '../middleware/auth.js';
 
 const router = express.Router();
-
-// Helper to generate JWT
-const generateToken = (user) => {
-  return jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-};
-
-// POST /register - Email & Password Sign Up
-router.post('/register', async (req, res) => {
-  const { name, email, password, photo } = req.body;
-  try {
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required' });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User with this email already exists' });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      photo: photo || '',
-      role: 'Tenant' // Standard registration defaults to Tenant, role can be updated or chosen (standardized as Tenant initial register, can be changed later)
-    });
-
-    const savedUser = await newUser.save();
-    const token = generateToken(savedUser);
-
-    res.status(201).json({
-      token,
-      user: {
-        id: savedUser._id,
-        name: savedUser.name,
-        email: savedUser.email,
-        photo: savedUser.photo,
-        role: savedUser.role
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error registering user', error: error.message });
-  }
-});
-
-// POST /login - Email & Password Login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user || !user.password) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = generateToken(user);
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        photo: user.photo,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error logging in', error: error.message });
-  }
-});
-
-// POST /google-login - Social Login
-router.post('/google-login', async (req, res) => {
-  const { name, email, photo } = req.body;
-  try {
-    if (!email) {
-      return res.status(400).json({ message: 'Google email is required' });
-    }
-
-    let user = await User.findOne({ email });
-    if (!user) {
-      // Create user with Tenant role by default
-      user = new User({
-        name: name || 'Google User',
-        email,
-        photo: photo || '',
-        role: 'Tenant'
-      });
-      await user.save();
-    }
-
-    const token = generateToken(user);
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        photo: user.photo,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error handling Google login', error: error.message });
-  }
-});
 
 // GET /me - Get current logged-in user profile
 router.get('/me', verifyToken, async (req, res) => {
@@ -178,6 +54,46 @@ router.patch('/users/:id/role', verifyToken, verifyRole(['Admin']), async (req, 
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error updating user role', error: error.message });
+  }
+});
+
+// PUT /profile - Update current logged-in user profile details (name, email, photo)
+router.put('/profile', verifyToken, async (req, res) => {
+  const { name, email, photo } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email is already taken by another account' });
+      }
+      user.email = email;
+    }
+
+    if (name) user.name = name;
+    if (photo !== undefined) {
+      user.photo = photo;
+      user.image = photo; // Keep image synchronized for Better Auth compatibility
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photo: user.photo || user.image || ''
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error updating profile', error: error.message });
   }
 });
 

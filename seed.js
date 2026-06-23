@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import dns from 'dns';
 import User from './models/User.js';
 import Property from './models/Property.js';
 import Review from './models/Review.js';
+import { auth } from './lib/auth.js';
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 dotenv.config();
@@ -18,45 +18,60 @@ const seedData = async () => {
 
     // Clear existing data
     await User.deleteMany({});
+    try {
+      await mongoose.connection.db.collection('user').deleteMany({});
+      await mongoose.connection.db.collection('accounts').deleteMany({});
+      await mongoose.connection.db.collection('account').deleteMany({});
+      await mongoose.connection.db.collection('sessions').deleteMany({});
+      await mongoose.connection.db.collection('session').deleteMany({});
+    } catch (e) {
+      // Collections might not exist yet
+    }
     await Property.deleteMany({});
     await Review.deleteMany({});
     console.log('Cleared existing database entries.');
 
-    // Create passwords hashes
-    const adminHash = await bcrypt.hash('adminpassword123', 10);
-    const ownerHash = await bcrypt.hash('ownerpassword123', 10);
-    const tenantHash = await bcrypt.hash('tenantpassword123', 10);
-
-    // Create users
-    const adminUser = new User({
-      name: 'System Admin',
-      email: 'admin@renterty.com',
-      password: adminHash,
-      role: 'Admin',
-      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'
+    // Create users using better-auth programmatic API
+    const adminRes = await auth.api.signUpEmail({
+      body: {
+        name: 'System Admin',
+        email: 'admin@renterty.com',
+        password: 'adminpassword123',
+        role: 'Admin',
+        photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'
+      }
     });
 
-    const ownerUser = new User({
-      name: 'Jane Doe',
-      email: 'owner@renterty.com',
-      password: ownerHash,
-      role: 'Owner',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=60'
+    const ownerRes = await auth.api.signUpEmail({
+      body: {
+        name: 'Jane Doe',
+        email: 'owner@renterty.com',
+        password: 'ownerpassword123',
+        role: 'Owner',
+        photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=60'
+      }
     });
 
-    const tenantUser = new User({
-      name: 'John Smith',
-      email: 'tenant@renterty.com',
-      password: tenantHash,
-      role: 'Tenant',
-      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=60'
+    const tenantRes = await auth.api.signUpEmail({
+      body: {
+        name: 'John Smith',
+        email: 'tenant@renterty.com',
+        password: 'tenantpassword123',
+        role: 'Tenant',
+        photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=60'
+      }
     });
 
-    const savedAdmin = await adminUser.save();
-    const savedOwner = await ownerUser.save();
-    const savedTenant = await tenantUser.save();
+    const savedAdmin = adminRes.user;
+    const savedOwner = ownerRes.user;
+    const savedTenant = tenantRes.user;
 
-    console.log('Seeded users (Admin: admin@renterty.com / adminpassword123)');
+    // Map id to _id for seed properties compatibility
+    savedAdmin._id = savedAdmin.id;
+    savedOwner._id = savedOwner.id;
+    savedTenant._id = savedTenant.id;
+
+    console.log('Seeded users via Better Auth (Admin: admin@renterty.com / adminpassword123)');
 
     // Seed Properties
     const properties = [

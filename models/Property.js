@@ -15,7 +15,7 @@ const propertySchema = new mongoose.Schema({
   extraFeatures: { type: String },
   status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
   rejectionFeedback: { type: String, default: '' },
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownerId: { type: String, ref: 'User', required: true },
   ownerEmail: { type: String, required: true }
 }, { timestamps: true });
 
