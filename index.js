@@ -154,6 +154,8 @@ app.get('/api/db-check', (req, res) => {
   });
 });
 
+
+
 // API Routes
 app.use('/api/properties', propertiesRouter);
 app.use('/api/bookings', bookingsRouter);
